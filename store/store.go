@@ -36,11 +36,11 @@ func (d *DataStore) Get(key string) (string, error) {
 	return "", fmt.Errorf("val for key %s not found")
 }
 
-func (d *DataStore) Put(val string) {
+func (d *DataStore) Put(val string) string {
 	for {
 		randKey := generateRandomKey(32)
 		if err := d.set(randKey, val); err == nil {
-			return
+			return randKey
 		}
 	}
 }
