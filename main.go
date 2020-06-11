@@ -4,26 +4,30 @@ import (
 	"flag"
 	"fmt"
 	"github.com/xdeepanshu/urlShortner/store"
+	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 )
 
 var (
-	ds   = store.NewDataStore()
-	form = `<html>
+	logger = log.New(os.Stdout, "url-shortner", log.LstdFlags)
+	ds     = store.NewDataStore("storage.gob", logger)
+	form   = `<html>
 		<form method="POST" action="/add">
 		URL: <input type="text" name="url"> 
 		<button type="submit">Add</button> 
 		</form>
 		</html>
 		`
-	port = flag.String("port", ":8080", "port for runnig the server on")
+	port       = flag.String("port", ":8080", "port for runnig the server on")
+	serverEcho = flag.Int("echo", 10, "time in secs for echo of server status")
 )
 
 func Add(rw http.ResponseWriter, r *http.Request) {
 	url := r.FormValue("url")
-	fmt.Println(url)
+	logger.Println(url)
 	protoPresent := strings.Contains(url, "http://") || strings.Contains(url, "https://")
 	if url == "" || !protoPresent {
 		fmt.Fprintln(rw, form)
@@ -46,18 +50,18 @@ func Redirect(rw http.ResponseWriter, r *http.Request) {
 func main() {
 	flag.Parse()
 	ch := make(chan error)
-	go func(ch <-chan error) {
-		fmt.Printf("Server is running ... on port %s\n", (*port)[1:])
+	go func(ch <-chan error, logger *log.Logger) {
+		logger.Printf("Server is running ... on port %s\n", (*port)[1:])
 		for {
 			select {
-			case <-time.After(time.Duration(20 * time.Second)):
-				fmt.Printf("Server is running ... on port %s\n", (*port)[1:])
+			case <-time.After((time.Duration(*serverEcho)) * time.Second):
+				logger.Printf("Server is running ... on port %s\n", (*port)[1:])
 			case err := <-ch:
-				fmt.Println("Error while listening: %s", err)
+				logger.Println("Error while listening: %s", err)
 				return
 			}
 		}
-	}(ch)
+	}(ch, logger)
 
 	http.HandleFunc("/", Redirect)
 	http.HandleFunc("/add", Add)
